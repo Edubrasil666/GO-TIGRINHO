@@ -1,0 +1,15 @@
+backend/server.exe
+
+.env
+.env.*
+!.env.example
+
+bin/
+*.exe
+*.log
+
+.vscode/
+.idea/
+
+.DS_Store
+Thumbs.db

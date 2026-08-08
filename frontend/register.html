@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Criar conta — Tigrinho Gold</title> <link rel="stylesheet" href="assets/css/style.css"> </head>
+
+<body>
+
+<header class="topbar">
+
+<a href="index.html" class="logo" style="text-decoration: none; color: inherit;">
+    <span class="logo-icon">🐯</span>
+    <span class="logo-text">TIGRINHO <strong>GOLD</strong></span>
+</a>
+
+</header>
+
+<main class="auth-page">
+
+<section class="auth-card">
+
+    <div class="auth-icon">🐯</div>
+
+    <span class="auth-label">COMECE AGORA</span>
+
+    <h1>Criar sua conta</h1>
+
+    <p class="auth-description">
+        Crie sua conta e entre para a comunidade Tigrinho Gold.
+    </p>
+
+    <form id="registerForm">
+
+        <div class="form-group">
+            <label for="username">Nome de usuário</label>
+            <input
+                type="text"
+                id="username"
+                name="username"
+                placeholder="Escolha seu usuário"
+                autocomplete="username"
+                required
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="email">E-mail</label>
+            <input
+                type="email"
+                id="email"
+                name="email"
+                placeholder="seu@email.com"
+                autocomplete="email"
+                required
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="password">Senha</label>
+            <input
+                type="password"
+                id="password"
+                name="password"
+                placeholder="Crie uma senha"
+                autocomplete="new-password"
+                required
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="confirmPassword">Confirmar senha</label>
+            <input
+                type="password"
+                id="confirmPassword"
+                name="confirmPassword"
+                placeholder="Digite a senha novamente"
+                autocomplete="new-password"
+                required
+            >
+        </div>
+
+        <button type="submit" class="auth-submit">
+            CRIAR CONTA
+        </button>
+
+        <p id="registerMessage" class="auth-message"></p>
+
+    </form>
+
+    <div class="auth-footer">
+        Já possui uma conta?
+        <a href="login.html">Entrar</a>
+    </div>
+
+    <a href="index.html" class="back-home">
+        ← Voltar para o início
+    </a>
+
+</section>
+
+</main>
+
+<script src="assets/js/register.js"></script>
+
+</body> </html>
