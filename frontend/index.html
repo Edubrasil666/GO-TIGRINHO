@@ -1,420 +1,320 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>GO-TIGRINHO</title>
 
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <link
+        rel="stylesheet"
+        href="/assets/css/style.css"
+    >
+<style id="bet-selector-style">
+
+.bet-control {
+    position: relative;
+    display: inline-block;
+    width: auto;
+}
+
+.bet-button {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 100px;
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 8px;
+    background: rgba(20,20,20,0.85);
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.bet-button:hover {
+    background: rgba(35,35,35,0.95);
+}
+
+.bet-arrow {
+    font-size: 9px;
+    opacity: 0.75;
+}
+
+.bet-options {
+    display: none !important;
+    position: absolute;
+    z-index: 99999;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 230px;
+    max-height: 260px;
+    overflow-y: auto;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    background: #181818;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+}
+
+.bet-options.show {
+    display: grid !important;
+}
+
+.bet-options button {
+    height: 32px;
+    padding: 0 4px;
+    border: 0;
+    border-radius: 6px;
+    background: #292929;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.bet-options button:hover {
+    background: #3b3b3b;
+}
+
+#bet {
+    display: none !important;
+}
+
+</style>
 </head>
 
 <body>
 
-<header id="main-header">
+<header class="header">
 
-    <div class="logo">
-        <span>🐯</span>
-        <strong>TIGRINHO GOLD</strong>
+    <div class="header-left">
+
+        <div class="logo">
+            <strong>
+                <span class="logo-go">GO-</span><span class="logo-tigrinho">TIGRINHO</span>
+            </strong>
+        </div>
+
+        <nav class="menu">
+
+            <a href="#" id="menu-home">
+                Início
+            </a>
+
+            <a href="#" id="menu-games">
+                Jogos
+            </a>
+
+            <a href="#" id="menu-account">
+                Minha Conta
+            </a>
+
+        </nav>
+
     </div>
 
-    <nav class="menu">
-        <a href="#">Início</a>
-        <a href="#">Jogos</a>
-        <a href="#">Promoções</a>
-        <a href="#">Torneios</a>
-    </nav>
 
     <div class="account">
-        <button class="btn-login">ENTRAR</button>
-        <button class="btn-register">CRIAR CONTA</button>
+
+        <div
+            id="logged-user"
+            class="logged-user"
+        >
+            Olá,
+            <strong id="header-username">
+                Jogador
+            </strong>
+        </div>
+
+
+        <div
+            id="header-balance"
+            class="header-balance"
+        >
+            💰 R$
+            <strong id="header-balance-value">
+                0,00
+            </strong>
+        </div>
+
+
+        <button
+            id="header-logout"
+            class="logout-button"
+        >
+            SAIR
+        </button>
+
+
+        <button
+            id="header-login"
+            class="btn-login"
+        >
+            ENTRAR
+        </button>
+
+
+        <button
+            id="header-register"
+            class="btn-register"
+        >
+            CRIAR CONTA
+        </button>
+
     </div>
 
 </header>
 
 
-<main>
+<!-- =====================================================
+     HOME
+===================================================== -->
 
-    <!-- ================= HOME ================= -->
+<main id="page-home">
 
-    <div id="home-content">
+    <section class="hero">
 
-        <section class="hero">
+        <div class="hero-content">
 
-            <div class="hero-content">
-
-                <div class="hero-badge">
-                    ✦ EXPERIÊNCIA PREMIUM
-                </div>
-
-                <h1>
-                    ENTRE NA<br>
-                    <span>SELVA DOURADA</span>
-                </h1>
-
-                <p>
-                    Uma nova experiência de jogos,
-                    diversão e grandes emoções.
-                </p>
-
-                <div class="hero-buttons">
-                    <button class="btn-primary">
-                        JOGAR AGORA
-                    </button>
-
-                    <button class="btn-secondary">
-                        VER JOGOS
-                    </button>
-                </div>
-
+            <div class="hero-badge">
+                ✦ EXPERIÊNCIA PREMIUM
             </div>
 
-            <div class="hero-tiger">
-                🐯
-            </div>
+            <h1>
+                ENTRE NA<br>
+                <span>SELVA DOURADA</span>
+            </h1>
 
-        </section>
+            <p>
+                Uma nova experiência de jogos,
+                diversão e grandes emoções.
+            </p>
 
+            <div class="hero-buttons">
 
-        <section class="games-section">
+                <button
+                    id="hero-play"
+                    class="btn-primary"
+                >
+                    JOGAR AGORA
+                </button>
 
-            <div class="section-title">
-
-                <div>
-                    <span>EXPLORE</span>
-                    <h2>Jogos em destaque</h2>
-                </div>
-
-                <button class="see-all">
-                    VER TODOS →
+                <button
+                    id="hero-games"
+                    class="btn-secondary"
+                >
+                    VER JOGOS
                 </button>
 
             </div>
 
+        </div>
 
-            <div class="games-grid">
 
-                <article class="game-card featured">
+        <div class="hero-tiger">
+            🐯
+        </div>
 
-                    <div class="game-image tiger-game">
+    </section>
+
+
+    <section class="games-section">
+
+        <div class="page-title">
+
+            <div>
+                <span>EXPLORE</span>
+
+                <h1>
+                    Escolha seu jogo
+                </h1>
+            </div>
+
+        </div>
+
+
+        <div class="games-grid">
+
+
+            <article class="game-card featured">
+
+                <div class="game-icon tiger-game">
+
+                    <div class="tiger-animated">
                         🐯
                     </div>
 
-                    <div class="game-info">
-                        <h3>Fortuna do Tigre</h3>
-                        <p>Slot • Jackpot</p>
-
-                        <button>JOGAR</button>
-                    </div>
-
-                </article>
-
-
-                <article class="game-card">
-
-                    <div class="game-image gold-game">
-                        🪙
-                    </div>
-
-                    <div class="game-info">
-                        <h3>Ouro Dourado</h3>
-                        <p>Slot • Clássico</p>
-
-                        <button>JOGAR</button>
-                    </div>
-
-                </article>
-
-
-                <article class="game-card">
-
-                    <div class="game-image fire-game">
-                        🔥
-                    </div>
-
-                    <div class="game-info">
-                        <h3>Fogo da Sorte</h3>
-                        <p>Slot • Especial</p>
-
-                        <button>JOGAR</button>
-                    </div>
-
-                </article>
-
-            </div>
-
-        </section>
-
-    </div>
-
-
-    <!-- ================= LOGIN ================= -->
-
-    <section id="login-screen" class="auth-page">
-
-        <div class="auth-card">
-
-            <div class="auth-icon">🐯</div>
-
-            <span class="auth-label">
-                TIGRINHO GOLD
-            </span>
-
-            <h1>Entrar</h1>
-
-            <p class="auth-description">
-                Entre na sua conta para continuar.
-            </p>
-
-
-            <div class="form-group">
-
-                <label for="login-username">
-                    Usuário
-                </label>
-
-                <input
-                    id="login-username"
-                    type="text"
-                    placeholder="Digite seu usuário"
-                >
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label for="login-password">
-                    Senha
-                </label>
-
-                <input
-                    id="login-password"
-                    type="password"
-                    placeholder="Digite sua senha"
-                >
-
-            </div>
-
-
-            <button
-                id="login-submit"
-                class="auth-submit"
-            >
-                ENTRAR
-            </button>
-
-
-            <div
-                id="login-message"
-                class="auth-message"
-            ></div>
-
-
-            <div class="auth-footer">
-
-                Ainda não tem uma conta?
-
-                <a href="#" id="go-register">
-                    Criar conta
-                </a>
-
-            </div>
-
-
-            <a
-                href="#"
-                class="back-home"
-                id="back-home-login"
-            >
-                ← Voltar para o início
-            </a>
-
-        </div>
-
-    </section>
-
-
-    <!-- ================= CADASTRO ================= -->
-
-    <section id="register-screen" class="auth-page">
-
-        <div class="auth-card">
-
-            <div class="auth-icon">🐯</div>
-
-            <span class="auth-label">
-                TIGRINHO GOLD
-            </span>
-
-            <h1>Criar conta</h1>
-
-            <p class="auth-description">
-                Crie sua conta e entre na selva dourada.
-            </p>
-
-
-            <div class="form-group">
-
-                <label for="register-username">
-                    Usuário
-                </label>
-
-                <input
-                    id="register-username"
-                    type="text"
-                    placeholder="Digite seu usuário"
-                >
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label for="register-email">
-                    E-mail
-                </label>
-
-                <input
-                    id="register-email"
-                    type="email"
-                    placeholder="Digite seu e-mail"
-                >
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label for="register-password">
-                    Senha
-                </label>
-
-                <input
-                    id="register-password"
-                    type="password"
-                    placeholder="Digite sua senha"
-                >
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label for="register-password-confirm">
-                    Confirmar senha
-                </label>
-
-                <input
-                    id="register-password-confirm"
-                    type="password"
-                    placeholder="Digite sua senha novamente"
-                >
-
-            </div>
-
-
-            <button
-                id="register-submit"
-                class="auth-submit"
-            >
-                CRIAR CONTA
-            </button>
-
-
-            <div
-                id="register-message"
-                class="auth-message"
-            ></div>
-
-
-            <div class="auth-footer">
-
-                Já possui uma conta?
-
-                <a href="#" id="go-login">
-                    Entrar
-                </a>
-
-            </div>
-
-
-            <a
-                href="#"
-                class="back-home"
-                id="back-home-register"
-            >
-                ← Voltar para o início
-            </a>
-
-        </div>
-
-    </section>
-
-
-    <!-- ================= JOGO ================= -->
-
-    <section id="game-screen" class="game-page">
-
-        <div class="game-card-main">
-
-            <div class="auth-icon">
-                🐯
-            </div>
-
-            <h1>Fortuna do Tigre</h1>
-
-            <div class="balance">
-                Saldo:
-                <strong id="balance">
-                    0
-                </strong>
-            </div>
-
-
-            <div class="slots">
-
-                <div id="slot1" class="slot">
-                    🐯
                 </div>
 
-                <div id="slot2" class="slot">
-                    🐯
+
+                <h2>
+                    Fortuna do Tigre
+                </h2>
+
+                <p>
+                    Slot • Jackpot
+                </p>
+
+                <button id="game-tiger">
+                    JOGAR
+                </button>
+
+            </article>
+
+
+            <article class="game-card">
+
+                <div class="game-icon gold-game">
+                    🪙
                 </div>
 
-                <div id="slot3" class="slot">
-                    🐯
+                <h2>
+                    Ouro Dourado
+                </h2>
+
+                <p>
+                    Slot • Clássico
+                </p>
+
+                <button disabled>
+                    EM BREVE
+                </button>
+
+            </article>
+
+
+            <article class="game-card">
+
+                <div class="game-icon fire-game">
+                    🔥
                 </div>
 
-            </div>
+                <h2>
+                    Fogo da Sorte
+                </h2>
 
+                <p>
+                    Slot • Especial
+                </p>
 
-            <input
-                id="bet"
-                type="number"
-                min="1"
-                value="100"
-                placeholder="Valor da aposta"
-            >
+                <button disabled>
+                    EM BREVE
+                </button>
 
-
-            <button id="play-button">
-                JOGAR
-            </button>
-
-
-            <div
-                id="game-message"
-                class="auth-message"
-            ></div>
-
-
-            <button
-                id="logout-button"
-                class="logout-button"
-            >
-                SAIR
-            </button>
+            </article>
 
         </div>
 
@@ -423,7 +323,732 @@
 </main>
 
 
+<!-- =====================================================
+     LOGIN
+===================================================== -->
+
+<section id="page-login" style="display:none;">
+
+    <div class="auth-box">
+
+        <div class="auth-icon">
+            🐯
+        </div>
+
+        <span class="auth-label">
+            <span class="logo-go">GO-</span><span class="logo-tigrinho">TIGRINHO</span>
+        </span>
+
+        <h1>
+            Entrar
+        </h1>
+
+        <p class="auth-description">
+            Entre na sua conta para continuar.
+        </p>
+
+
+        <div class="form-group login-field">
+
+            <label for="login-username">
+                Usuário
+            </label>
+
+            <input
+                id="login-username"
+                type="text"
+                placeholder="Digite seu usuário"
+            >
+
+        </div>
+
+
+        <div class="form-group login-field">
+
+            <label for="login-password">
+                Senha
+            </label>
+
+            <input
+                id="login-password"
+                type="password"
+                placeholder="Digite sua senha"
+            >
+
+        </div>
+
+
+        <button
+            id="login-submit"
+            class="auth-submit"
+        >
+            ENTRAR
+        </button>
+
+
+        <a
+            href="#"
+            id="forgot-password-link"
+            class="forgot-password-link"
+        >
+            Esqueci minha senha
+        </a>
+
+
+        <div
+            id="login-message"
+            class="auth-message"
+        ></div>
+
+
+        <div class="auth-footer">
+
+            Ainda não tem uma conta?
+
+            <a
+                href="#"
+                id="go-register"
+            >
+                Criar conta
+            </a>
+
+        </div>
+
+
+        <a
+            href="#"
+            class="back-home"
+            id="back-home-login"
+        >
+            ← Voltar para o início
+        </a>
+
+
+        <!-- RECUPERAÇÃO -->
+
+<div
+    id="forgot-password-view"
+    class="forgot-password-view"
+    style="display:none;"
+>
+
+<div class="forgot-icon">
+    🔐
+</div>
+
+<h2>
+    Recuperar senha
+</h2>
+
+<p>
+    Digite o e-mail cadastrado
+    na sua conta.
+</p>
+
+
+<div class="form-group">
+
+    <label for="forgot-email">
+        E-mail da conta
+    </label>
+
+    <input
+        id="forgot-email"
+        type="email"
+        placeholder="Digite seu e-mail"
+    >
+
+</div>
+
+
+<button
+    id="send-reset-code"
+    class="auth-submit"
+>
+    ENVIAR CÓDIGO
+</button>
+
+
+<!-- ÁREA DO CÓDIGO -->
+
+<div
+    id="reset-code-area"
+    style="display:none;"
+>
+
+    <div class="form-group">
+
+        <label for="reset-code">
+            Código recebido
+        </label>
+
+        <input
+            id="reset-code"
+            type="text"
+            inputmode="numeric"
+            maxlength="6"
+            placeholder="Digite o código recebido"
+        >
+
+    </div>
+
+
+    <button
+        id="confirm-reset-code"
+        class="auth-submit"
+    >
+        CONFIRMAR CÓDIGO
+    </button>
+
+
+    <!-- NOVA SENHA
+         FICA ESCONDIDA ATÉ O CÓDIGO SER CONFIRMADO -->
+
+    <div
+        id="new-password-area"
+        style="display:none;"
+    >
+
+        <div class="form-group">
+
+            <label for="new-password">
+                Nova senha
+            </label>
+
+            <input
+                id="new-password"
+                type="password"
+                placeholder="Digite a nova senha"
+            >
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="new-password-confirm">
+                Confirmar nova senha
+            </label>
+
+            <input
+                id="new-password-confirm"
+                type="password"
+                placeholder="Digite novamente"
+            >
+
+        </div>
+
+
+        <button
+            id="reset-password-submit"
+            class="auth-submit"
+        >
+            ALTERAR SENHA
+        </button>
+
+    </div>
+
+</div>
+
+
+<div
+    id="forgot-message"
+    class="auth-message"
+></div>
+
+
+<a
+    href="#"
+    id="back-to-login"
+    class="back-home"
+>
+    ← Voltar para entrar
+</a>
+
+</div>
+
+
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     CADASTRO
+===================================================== -->
+
+<section id="page-register" style="display:none;">
+
+    <div class="auth-box">
+
+        <div class="auth-icon">
+            🐯
+        </div>
+
+        <span class="auth-label">
+            <span class="logo-go">GO-</span><span class="logo-tigrinho">TIGRINHO</span>
+        </span>
+
+        <h1>
+            Criar conta
+        </h1>
+
+        <p class="auth-description">
+            Crie sua conta e entre na selva dourada.
+        </p>
+
+
+        <div class="form-group">
+
+            <label for="register-username">
+                Usuário
+            </label>
+
+            <input
+                id="register-username"
+                type="text"
+                placeholder="Digite seu usuário"
+            >
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="register-email">
+                E-mail
+            </label>
+
+            <input
+                id="register-email"
+                type="email"
+                placeholder="Digite seu e-mail"
+            >
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="register-password">
+                Senha
+            </label>
+
+            <input
+                id="register-password"
+                type="password"
+                placeholder="Digite sua senha"
+            >
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="register-password-confirm">
+                Confirmar senha
+            </label>
+
+            <input
+                id="register-password-confirm"
+                type="password"
+                placeholder="Digite sua senha novamente"
+            >
+
+        </div>
+
+
+        <button
+            id="register-submit"
+            class="auth-submit"
+        >
+            CRIAR CONTA
+        </button>
+
+
+        <div
+            id="register-message"
+            class="auth-message"
+        ></div>
+
+
+        <div class="auth-footer">
+
+            Já possui uma conta?
+
+            <a
+                href="#"
+                id="go-login"
+            >
+                Entrar
+            </a>
+
+        </div>
+
+
+        <a
+            href="#"
+            class="back-home"
+            id="back-home-register"
+        >
+            ← Voltar para o início
+        </a>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     JOGOS
+===================================================== -->
+
+<section id="page-games" style="display:none;">
+
+    <div class="page-title">
+
+        <span>
+            🎮 CENTRAL DE JOGOS
+        </span>
+
+        <h1>
+            Escolha seu jogo
+        </h1>
+
+        <p>
+            Sua conta está conectada.
+            Escolha uma experiência para começar.
+        </p>
+
+    </div>
+
+
+    <div class="games-grid">
+
+        <article class="game-card featured">
+
+            <div class="game-icon tiger-game">
+
+                <div class="tiger-animated">
+                    🐯
+                </div>
+
+            </div>
+
+            <h2>
+                Fortuna do Tigre
+            </h2>
+
+            <p>
+                Slot • Jackpot
+            </p>
+
+            <button id="games-tiger">
+                JOGAR AGORA
+            </button>
+
+        </article>
+
+
+        <article class="game-card">
+
+            <div class="game-icon gold-game">
+                🪙
+            </div>
+
+            <h2>
+                Ouro Dourado
+            </h2>
+
+            <p>
+                Slot • Clássico
+            </p>
+
+            <button disabled>
+                EM BREVE
+            </button>
+
+        </article>
+
+
+        <article class="game-card">
+
+            <div class="game-icon fire-game">
+                🔥
+            </div>
+
+            <h2>
+                Fogo da Sorte
+            </h2>
+
+            <p>
+                Slot • Especial
+            </p>
+
+            <button disabled>
+                EM BREVE
+            </button>
+
+        </article>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     CONTA
+===================================================== -->
+
+<section id="page-account" style="display:none;">
+
+    <div class="account-box">
+
+        <div class="auth-icon">
+            👤
+        </div>
+
+        <span class="auth-label">
+            MINHA CONTA
+        </span>
+
+        <h1 id="account-username">
+            Jogador
+        </h1>
+
+        <div class="account-balance">
+
+            <span>
+                SUA BANCA
+            </span>
+
+            <strong id="account-balance">
+                R$ 0,00
+            </strong>
+
+        </div>
+
+
+        <button
+            id="account-games"
+            class="auth-submit"
+        >
+            🎮 VER JOGOS
+        </button>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     JOGO — DEMO VISUAL
+===================================================== -->
+
+<section id="page-game" style="display:none;">
+
+    <div class="game-container">
+
+        <div class="game-header">
+
+            <button
+                id="back-to-games"
+                class="back-game"
+            >
+                ←
+            </button>
+
+            <h1>
+                Fortuna do Tigre
+            </h1>
+
+        </div>
+
+
+        <div class="balance-box">
+
+            <span>
+                Saldo
+            </span>
+
+            <strong id="balance">
+                0,00
+            </strong>
+
+        </div>
+
+
+        <div class="slots">
+
+            <div
+                id="slot1"
+                class="slot"
+            >
+                🐯
+            </div>
+
+            <div
+                id="slot2"
+                class="slot"
+            >
+                🐯
+            </div>
+
+            <div
+                id="slot3"
+                class="slot"
+            >
+                🐯
+            </div>
+
+        </div>
+
+
+        <div class="bet-area">
+
+    <label for="bet">
+        Valor da aposta
+    </label>
+
+    <div class="bet-control">
+
+    <button
+        type="button"
+        id="bet-button"
+        class="bet-button"
+    >
+        <span id="bet-value">1,00</span>
+        <span class="bet-arrow">▼</span>
+    </button>
+
+    <div
+        id="bet-options"
+        class="bet-options"
+    >
+
+        <button type="button" data-bet="0.50">0,50</button>
+        <button type="button" data-bet="1">1,00</button>
+        <button type="button" data-bet="1.50">1,50</button>
+        <button type="button" data-bet="2">2,00</button>
+        <button type="button" data-bet="2.50">2,50</button>
+        <button type="button" data-bet="3">3,00</button>
+        <button type="button" data-bet="3.50">3,50</button>
+        <button type="button" data-bet="4">4,00</button>
+        <button type="button" data-bet="4.50">4,50</button>
+        <button type="button" data-bet="5">5,00</button>
+        <button type="button" data-bet="10">10,00</button>
+        <button type="button" data-bet="15">15,00</button>
+        <button type="button" data-bet="20">20,00</button>
+        <button type="button" data-bet="25">25,00</button>
+        <button type="button" data-bet="30">30,00</button>
+        <button type="button" data-bet="35">35,00</button>
+        <button type="button" data-bet="40">40,00</button>
+        <button type="button" data-bet="45">45,00</button>
+        <button type="button" data-bet="50">50,00</button>
+        <button type="button" data-bet="55">55,00</button>
+        <button type="button" data-bet="60">60,00</button>
+        <button type="button" data-bet="65">65,00</button>
+        <button type="button" data-bet="70">70,00</button>
+        <button type="button" data-bet="75">75,00</button>
+        <button type="button" data-bet="80">80,00</button>
+        <button type="button" data-bet="120">120,00</button>
+        <button type="button" data-bet="150">150,00</button>
+        <button type="button" data-bet="180">180,00</button>
+        <button type="button" data-bet="220">220,00</button>
+        <button type="button" data-bet="250">250,00</button>
+        <button type="button" data-bet="300">300,00</button>
+        <button type="button" data-bet="350">350,00</button>
+        <button type="button" data-bet="400">400,00</button>
+        <button type="button" data-bet="450">450,00</button>
+        <button type="button" data-bet="500">500,00</button>
+
+    </div>
+
+    <input
+        id="bet"
+        type="hidden"
+        value="1"
+    >
+
+</div>
+
+    <small>
+        
+    </small>
+
+</div>
+
+
+        <div class="game-controls">
+
+            <button
+                id="turbo-button"
+                title="Turbo"
+            >
+                ⚡
+            </button>
+
+
+            <button
+                id="play-button"
+            >
+                JOGAR
+            </button>
+
+
+            <button
+                id="auto-play-button"
+                title="Rodadas automáticas"
+            >
+                🔄
+            </button>
+
+        </div>
+
+
+        <div
+            id="auto-options"
+            class="auto-options"
+        >
+
+            <button data-rounds="5">
+                5
+            </button>
+
+            <button data-rounds="10">
+                10
+            </button>
+
+            <button data-rounds="25">
+                25
+            </button>
+
+            <button data-rounds="50">
+                50
+            </button>
+
+            <button data-rounds="infinite">
+                ∞
+            </button>
+
+        </div>
+
+
+        <div
+            id="game-message"
+            class="game-message"
+        ></div>
+
+    </div>
+
+</section>
+
+
 <script src="/assets/js/app.js"></script>
 
 </body>
 </html>
+
+
+
