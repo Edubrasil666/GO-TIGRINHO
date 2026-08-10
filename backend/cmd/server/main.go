@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/big"
 	"net/http"
 	"net/smtp"
@@ -143,6 +144,11 @@ func main() {
 	)
 
 	mux.HandleFunc(
+		"/api/demo/balance",
+		auth(updateDemoBalance),
+	)
+
+	mux.HandleFunc(
 		"/api/history",
 		auth(history),
 	)
@@ -225,6 +231,10 @@ func getenv(
 	}
 
 	return fallback
+}
+
+func isFinite(value float64) bool {
+	return !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
 func writeJSON(
@@ -1351,6 +1361,122 @@ func secureInt(
 	}
 
 	return n.Int64()
+}
+
+func updateDemoBalance(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	if r.Method != http.MethodPost {
+		writeJSON(
+			w,
+			http.StatusMethodNotAllowed,
+			map[string]string{
+				"error": "método não permitido",
+			},
+		)
+		return
+	}
+
+	var input struct {
+		Delta float64 `json:"delta"`
+	}
+
+	if err := readJSON(r, &input); err != nil {
+		writeJSON(
+			w,
+			http.StatusBadRequest,
+			map[string]string{
+				"error": "JSON inválido",
+			},
+		)
+		return
+	}
+
+	if !isFinite(input.Delta) {
+		writeJSON(
+			w,
+			http.StatusBadRequest,
+			map[string]string{
+				"error": "valor inválido",
+			},
+		)
+		return
+	}
+
+	id := r.Context().
+		Value("userID").(bson.ObjectID)
+
+	ctx, cancel := context.WithTimeout(
+		r.Context(),
+		5*time.Second,
+	)
+
+	defer cancel()
+
+	var user User
+
+	err := users.FindOne(
+		ctx,
+		bson.M{
+			"_id": id,
+		},
+	).Decode(&user)
+
+	if err != nil {
+		writeJSON(
+			w,
+			http.StatusNotFound,
+			map[string]string{
+				"error": "usuário não encontrado",
+			},
+		)
+		return
+	}
+
+	newBalance := user.Balance + input.Delta
+
+	if newBalance < 0 {
+		writeJSON(
+			w,
+			http.StatusBadRequest,
+			map[string]string{
+				"error": "saldo insuficiente",
+			},
+		)
+		return
+	}
+
+	_, err = users.UpdateOne(
+		ctx,
+		bson.M{
+			"_id": id,
+		},
+		bson.M{
+			"$set": bson.M{
+				"balance": newBalance,
+			},
+		},
+	)
+
+	if err != nil {
+		writeJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{
+				"error": "erro ao atualizar saldo",
+			},
+		)
+		return
+	}
+
+	writeJSON(
+		w,
+		http.StatusOK,
+		map[string]any{
+			"balance": newBalance,
+		},
+	)
 }
 
 func playTiger(

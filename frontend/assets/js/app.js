@@ -145,7 +145,7 @@ const DEMO_START_BALANCE = 10000;
    Mantida separada para que a modalidade possa
    ser alterada sem mexer no restante do jogo.
 */
-const DEMO_MAX_BET = 100000;
+const DEMO_MAX_BET = 500;
 
 /* =========================================================
    SÍMBOLOS
@@ -1977,31 +1977,149 @@ function spinSlots() {
             ];
         }
 
-        const finalSymbols = [
-            slotSymbols[
-                Math.floor(
-                    Math.random() *
-                    slotSymbols.length
-                )
-            ],
-            slotSymbols[
-                Math.floor(
-                    Math.random() *
-                    slotSymbols.length
-                )
-            ],
-            slotSymbols[
-                Math.floor(
-                    Math.random() *
-                    slotSymbols.length
-                )
-            ]
+        /*
+         * PESOS DOS SÍMBOLOS
+         *
+         * Quanto maior o número, maior a chance
+         * do símbolo aparecer.
+         *
+         * 🐯 = extremamente raro
+         * 💰 = raro
+         * 🍒 = mais comum
+         * 💎 = comum
+         * 🔔 = muito comum
+         * 7️⃣ = muito comum
+         */
+
+        const symbolWeights = [
+            {
+                symbol: "🐯",
+                weight: 1
+            },
+            {
+                symbol: "💰",
+                weight: 5
+            },
+            {
+                symbol: "🍒",
+                weight: 15
+            },
+            {
+                symbol: "💎",
+                weight: 22
+            },
+            {
+                symbol: "🔔",
+                weight: 27
+            },
+            {
+                symbol: "7️⃣",
+                weight: 30
+            }
         ];
+
+        /*
+         * Sorteia um símbolo individualmente.
+         */
+
+        function randomSymbol() {
+
+            const totalWeight =
+                symbolWeights.reduce(
+                    function (total, item) {
+                        return total + item.weight;
+                    },
+                    0
+                );
+
+            let random =
+                Math.random() * totalWeight;
+
+            for (
+                let i = 0;
+                i < symbolWeights.length;
+                i++
+            ) {
+
+                random -=
+                    symbolWeights[i].weight;
+
+                if (random <= 0) {
+                    return symbolWeights[i].symbol;
+                }
+            }
+
+            return "7️⃣";
+        }
+
+        /*
+         * GERA O RESULTADO FINAL
+         *
+         * Primeiro sorteamos normalmente.
+         */
+
+        let finalSymbols = [
+            randomSymbol(),
+            randomSymbol(),
+            randomSymbol()
+        ];
+
+        /*
+         * EVITA EXCESSO DE TRIPLAS.
+         *
+         * Mesmo que os sorteios individuais
+         * resultem em 3 iguais, existe uma
+         * proteção adicional.
+         *
+         * A chance de uma tripla já é baixa
+         * pelos pesos acima, e aqui reduzimos
+         * ainda mais sua frequência.
+         */
+
+        if (
+            finalSymbols[0] === finalSymbols[1] &&
+            finalSymbols[1] === finalSymbols[2]
+        ) {
+
+            /*
+             * Só permite a tripla em uma pequena
+             * parcela dos casos.
+             */
+
+            const allowTriple =
+                Math.random() < 0.08;
+
+            if (!allowTriple) {
+
+                /*
+                 * Troca o terceiro símbolo por
+                 * outro símbolo diferente.
+                 */
+
+                let replacement =
+                    randomSymbol();
+
+                while (
+                    replacement ===
+                    finalSymbols[0]
+                ) {
+                    replacement =
+                        randomSymbol();
+                }
+
+                finalSymbols[2] =
+                    replacement;
+            }
+        }
 
         let finished = 0;
 
         validSlots.forEach(
             function (slot, index) {
+
+                /*
+                 * SUPER TURBO
+                 */
 
                 if (turboLevel === 2) {
 
@@ -2026,22 +2144,15 @@ function spinSlots() {
                         durations.length - 1
                     ];
 
-                const start = Date.now();
+                const start =
+                    Date.now();
 
                 const timer =
                     setInterval(
                         function () {
 
-                            const randomIndex =
-                                Math.floor(
-                                    Math.random() *
-                                    slotSymbols.length
-                                );
-
                             slot.textContent =
-                                slotSymbols[
-                                    randomIndex
-                                ];
+                                randomSymbol();
 
                             if (
                                 Date.now() -
@@ -2060,6 +2171,7 @@ function spinSlots() {
                                     finished ===
                                     validSlots.length
                                 ) {
+
                                     resolve(
                                         finalSymbols
                                     );
@@ -2195,9 +2307,7 @@ function processDemoResult(symbols, bet) {
                 pairMultipliers[pairSymbol] || 0;
 
             payout =
-                Math.floor(
-                    bet * multiplier
-                );
+                bet * multiplier;
 
             resultType = "pair";
         }
@@ -2273,19 +2383,18 @@ async function playDemoRound() {
 
     if (bet > DEMO_MAX_BET) {
 
-        const message =
-            document.getElementById(
-                "game-message"
-            );
+    const message =
+        document.getElementById(
+            "game-message"
+        );
 
-        if (message) {
-            message.textContent =
-                "A aposta máxima é de 100.000 pontos.";
-        }
-
-        return false;
+    if (message) {
+        message.textContent =
+            "A aposta máxima é de R$ 500,00.";
     }
 
+    return;
+}
     /*
        NÃO PERMITE APOSTAR MAIS DO QUE O SALDO.
     */
