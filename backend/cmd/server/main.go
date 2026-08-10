@@ -1498,10 +1498,7 @@ func playTiger(
 		Bet int64 `json:"bet"`
 	}
 
-	if err := readJSON(
-		r,
-		&input,
-	); err != nil {
+	if err := readJSON(r, &input); err != nil {
 		writeJSON(
 			w,
 			http.StatusBadRequest,
@@ -1512,13 +1509,15 @@ func playTiger(
 		return
 	}
 
-	if input.Bet < 1 ||
-		input.Bet > 100000 {
+	// Esta versão é exclusivamente DEMO.
+	// A aposta é recebida apenas para reproduzir
+	// a interface do jogo, mas não movimenta saldo real.
+	if input.Bet < 1 || input.Bet > 100000 {
 		writeJSON(
 			w,
 			http.StatusBadRequest,
 			map[string]string{
-				"error": "aposta virtual entre 1 e 100000",
+				"error": "valor da demo entre 1 e 100000",
 			},
 		)
 		return
@@ -1527,13 +1526,46 @@ func playTiger(
 	id := r.Context().
 		Value("userID").(bson.ObjectID)
 
+	// Símbolos utilizados apenas para a apresentação da demo.
+	symbols := []string{
+		"🐯",
+		"💰",
+		"🪙",
+		"💎",
+		"🔔",
+		"7️⃣",
+	}
+
+	a := symbols[secureInt(int64(len(symbols)))]
+	b := symbols[secureInt(int64(len(symbols)))]
+	c := symbols[secureInt(int64(len(symbols)))]
+
+	// Resultado demonstrativo.
+	// Não gera pagamento nem altera o saldo.
+	var win int64
+
+	if a == b && b == c {
+		switch a {
+		case "🐯":
+			win = input.Bet * 10
+		case "💎":
+			win = input.Bet * 8
+		case "7️⃣":
+			win = input.Bet * 6
+		default:
+			win = input.Bet * 4
+		}
+	} else if a == b || b == c || a == c {
+		win = input.Bet * 2
+	}
+
 	ctx, cancel := context.WithTimeout(
 		r.Context(),
 		5*time.Second,
 	)
-
 	defer cancel()
 
+	// Recupera o saldo atual apenas para exibição.
 	var user User
 
 	err := users.FindOne(
@@ -1554,96 +1586,18 @@ func playTiger(
 		return
 	}
 
-	if user.Balance <
-		float64(input.Bet) {
-		writeJSON(
-			w,
-			http.StatusBadRequest,
-			map[string]string{
-				"error": "saldo virtual insuficiente",
-			},
-		)
-		return
-	}
-
-	symbols := []string{
-		"🐯",
-		"💰",
-		"🪙",
-		"💎",
-		"🔔",
-		"7️⃣",
-	}
-
-	a := symbols[secureInt(int64(len(symbols)))]
-	b := symbols[secureInt(int64(len(symbols)))]
-	c := symbols[secureInt(int64(len(symbols)))]
-
-	var win int64
-
-	if a == b &&
-		b == c {
-
-		switch a {
-
-		case "🐯":
-			win = input.Bet * 10
-
-		case "💎":
-			win = input.Bet * 8
-
-		case "7️⃣":
-			win = input.Bet * 6
-
-		default:
-			win = input.Bet * 4
-		}
-
-	} else if a == b ||
-		b == c ||
-		a == c {
-
-		win = input.Bet * 2
-	}
-
-	newBalance :=
-		user.Balance -
-			float64(input.Bet) +
-			float64(win)
-
-	_, err = users.UpdateOne(
-		ctx,
-		bson.M{
-			"_id": id,
-		},
-		bson.M{
-			"$set": bson.M{
-				"balance": newBalance,
-			},
-		},
-	)
-
-	if err != nil {
-		writeJSON(
-			w,
-			http.StatusInternalServerError,
-			map[string]string{
-				"error": "erro ao atualizar saldo",
-			},
-		)
-		return
-	}
-
 	result := map[string]any{
 		"symbols": []string{
 			a,
 			b,
 			c,
 		},
-		"win": win,
-		"net": win - input.Bet,
+		"win":  win,
+		"net":  int64(0),
+		"demo": true,
 	}
 
+	// Histórico da demonstração.
 	_, _ = bets.InsertOne(
 		ctx,
 		Bet{
@@ -1660,8 +1614,9 @@ func playTiger(
 		w,
 		http.StatusOK,
 		map[string]any{
-			"balance": newBalance,
+			"balance": user.Balance,
 			"result":  result,
+			"demo":    true,
 		},
 	)
 }
