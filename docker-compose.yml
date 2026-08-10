@@ -1,12 +1,38 @@
 services:
+  mongo:
+    image: mongo:8
+    container_name: go-tigrinho-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+
   app:
-    image: go-tigrinho:latest
+    image: golang:1.25
     container_name: go-tigrinho-app
     restart: unless-stopped
+    working_dir: /app
+
+    volumes:
+      - ./backend:/app
+      - ./frontend:/frontend:ro
+
     environment:
-      MONGO_URI: ${MONGO_URI}
-      MONGO_DB: tigrinho
+      MONGO_URI: "mongodb://mongo:27017"
+      MONGO_DB: "tigrinho"
       PORT: "8080"
+      SMTP_HOST: "smtp.gmail.com"
+      SMTP_PORT: "587"
+      SMTP_USER: "eferreiraribeiro91@gmail.com"
+      SMTP_PASS: "reaziwrdkttldibt"
+      SMTP_FROM: "eferreiraribeiro91@gmail.com"
+
+    depends_on:
+      - mongo
+
     ports:
       - "8080:8080"
 
+    command: sh -c "go mod download && go run ./cmd/server"
+
+volumes:
+  mongo_data:
