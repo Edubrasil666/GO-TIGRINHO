@@ -131,21 +131,22 @@ let turboLevel = 0;
 let autoPlaying = false;
 let autoRounds = 0;
 let autoCancelRequested = false;
-let autoRunId = 0;
 
 /* =========================================================
    CONFIGURAÇÃO DO DEMO
 ========================================================= */
 
 const DEMO_START_BALANCE = 10000;
+const DEMO_MAX_BET = 500;
 
 /*
-   MODALIDADE DA APOSTA
-
-   Mantida separada para que a modalidade possa
-   ser alterada sem mexer no restante do jogo.
-*/
-const DEMO_MAX_BET = 500;
+ * IMPORTANTE:
+ *
+ * NÃO existe mais saldo salvo em localStorage.
+ *
+ * O saldo oficial é SEMPRE o saldo retornado
+ * pelo servidor através de /api/me e /api/demo/balance.
+ */
 
 /* =========================================================
    SÍMBOLOS
@@ -178,119 +179,211 @@ function formatMoney(value) {
 }
 
 /* =========================================================
-   IDENTIFICADOR DO SALDO DEMO
+   ATUALIZAR SALDO NO SERVIDOR
 ========================================================= */
 
-function getDemoBalanceKey() {
+/*
+ * Esta é a função PRINCIPAL de saldo.
+ *
+ * O navegador envia somente a alteração.
+ *
+ * Exemplo:
+ *
+ * delta = -10
+ *
+ * servidor:
+ * 10000 - 10 = 9990
+ *
+ * Depois o servidor devolve:
+ *
+ * balance: 9990
+ *
+ * currentUser recebe exatamente esse valor.
+ */
 
-    if (!currentUser) {
-        return "demoBalance:guest";
+async function changeServerBalance(delta) {
+
+    if (!token) {
+        return null;
     }
 
-    const identifier =
-        currentUser.id ||
-        currentUser.userId ||
-        currentUser.email ||
-        currentUser.username ||
-        "default";
+    const value = Number(delta);
 
-    return "demoBalance:" +
-        String(identifier).toLowerCase();
+    if (!Number.isFinite(value)) {
+        console.error("Delta de saldo inválido:", delta);
+        return null;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/demo/balance",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "Authorization":
+                            "Bearer " + token
+                    },
+
+                    cache: "no-store",
+
+                    body:
+                        JSON.stringify({
+                            delta: value
+                        })
+                }
+            );
+
+        let data = {};
+
+        try {
+            data = await response.json();
+        } catch (_) {}
+
+        if (!response.ok) {
+
+            console.error(
+                "Erro ao atualizar saldo:",
+                data
+            );
+
+            return null;
+        }
+
+        /*
+         * SERVIDOR É A FONTE OFICIAL.
+         */
+
+        if (
+            data &&
+            Number.isFinite(
+                Number(data.balance)
+            )
+        ) {
+
+            currentUser.balance =
+                Number(data.balance);
+
+            updateDemoBalanceVisual();
+        }
+
+        return data;
+
+    } catch (error) {
+
+        console.error(
+            "Erro de conexão ao atualizar saldo:",
+            error
+        );
+
+        return null;
+    }
 }
 
 /* =========================================================
-   GARANTIR SALDO
+   SALDO DA CONTA
 ========================================================= */
 
-function ensureDemoBalance() {
+async function refreshAccountFromServer() {
 
-    if (!currentUser) {
-        return;
+    if (!token) {
+        return null;
     }
 
-    const key = getDemoBalanceKey();
+    try {
 
-    const saved = Number(
-        localStorage.getItem(key)
-    );
+        const response =
+            await fetch(
+                "/api/me",
+                {
+                    method: "GET",
 
-    if (
-        Number.isFinite(saved) &&
-        saved >= 0
-    ) {
+                    headers: {
+                        "Authorization":
+                            "Bearer " + token
+                    },
 
-        currentUser.demoBalance = saved;
+                    cache: "no-store"
+                }
+            );
 
-    } else {
+        if (!response.ok) {
 
-        currentUser.demoBalance =
-            DEMO_START_BALANCE;
+            console.error(
+                "Erro ao consultar a conta:",
+                response.status
+            );
 
-        localStorage.setItem(
-            key,
-            String(DEMO_START_BALANCE)
+            if (
+                response.status === 401 ||
+                response.status === 403
+            ) {
+
+                localStorage.removeItem("token");
+
+                token = null;
+                currentUser = null;
+            }
+
+            return null;
+        }
+
+        const user =
+            await response.json();
+
+        /*
+         * O servidor é a fonte oficial.
+         */
+
+        currentUser = user;
+
+        updateDemoBalanceVisual();
+        updateHeader(currentUser);
+        updateAccountData(currentUser);
+
+        return currentUser;
+
+    } catch (error) {
+
+        console.error(
+            "Erro ao consultar o servidor:",
+            error
         );
+
+        return null;
     }
 }
 
 /* =========================================================
-   SALVAR SALDO
+   SINCRONIZAÇÃO DO SALDO
 ========================================================= */
 
-function saveDemoBalance() {
+/*
+ * Atualiza o saldo diretamente do servidor.
+ *
+ * Pode ser chamada sempre que abrirmos
+ * a conta ou o jogo.
+ */
 
-    if (!currentUser) {
-        return;
+async function syncBalance() {
+
+    if (!token) {
+        return null;
     }
 
-    localStorage.setItem(
-        getDemoBalanceKey(),
-        String(currentUser.demoBalance)
-    );
-}
+    const user =
+        await refreshAccountFromServer();
 
-/* =========================================================
-   ATUALIZAR SALDO
-========================================================= */
-
-function updateDemoBalanceVisual() {
-
-    if (!currentUser) {
-        return;
+    if (user) {
+        updateDemoBalanceVisual();
     }
 
-    ensureDemoBalance();
-
-    const balance =
-        document.getElementById("balance");
-
-    const headerBalanceValue =
-        document.getElementById(
-            "header-balance-value"
-        );
-
-    const accountBalance =
-        document.getElementById(
-            "account-balance"
-        );
-
-    const value =
-        formatMoney(
-            currentUser.demoBalance
-        );
-
-    if (balance) {
-        balance.textContent = value;
-    }
-
-    if (headerBalanceValue) {
-        headerBalanceValue.textContent = value;
-    }
-
-    if (accountBalance) {
-        accountBalance.textContent =
-            "R$ " + value;
-    }
+    return user;
 }
 
 /* =========================================================
@@ -378,8 +471,6 @@ function updateHeader(user) {
         return;
     }
 
-    ensureDemoBalance();
-
     if (loggedUser) {
         loggedUser.style.display =
             "inline-flex";
@@ -400,7 +491,7 @@ function updateHeader(user) {
     if (balanceValue) {
         balanceValue.textContent =
             formatMoney(
-                user.demoBalance
+                user.balance
             );
     }
 
@@ -495,13 +586,19 @@ function showRegister() {
     });
 }
 
-function showGames(user) {
+async function showGames(user) {
 
     if (user) {
         currentUser = user;
     }
 
-    ensureDemoBalance();
+    /*
+     * Atualiza novamente pelo servidor.
+     */
+
+    if (token) {
+        await syncBalance();
+    }
 
     hideAllPages();
 
@@ -522,13 +619,15 @@ function showGames(user) {
     });
 }
 
-function showAccount(user) {
+async function showAccount(user) {
 
     if (user) {
         currentUser = user;
     }
 
-    ensureDemoBalance();
+    if (token) {
+        await syncBalance();
+    }
 
     hideAllPages();
 
@@ -549,13 +648,20 @@ function showAccount(user) {
     });
 }
 
-function showGame(user) {
+async function showGame(user) {
 
     if (user) {
         currentUser = user;
     }
 
-    ensureDemoBalance();
+    /*
+     * Sempre entra no jogo com saldo
+     * atualizado pelo servidor.
+     */
+
+    if (token) {
+        await syncBalance();
+    }
 
     hideAllPages();
 
@@ -586,8 +692,6 @@ function updateAccountData(user) {
         return;
     }
 
-    ensureDemoBalance();
-
     const accountUsername =
         document.getElementById(
             "account-username"
@@ -612,15 +716,63 @@ function updateAccountData(user) {
         accountBalance.textContent =
             "R$ " +
             formatMoney(
-                user.demoBalance
+                user.balance
             );
     }
 
     if (balance) {
         balance.textContent =
             formatMoney(
-                user.demoBalance
+                user.balance
             );
+    }
+}
+
+/* =========================================================
+   VISUAL DO JOGO
+========================================================= */
+
+function updateDemoBalanceVisual() {
+
+    if (!currentUser) {
+        return;
+    }
+
+    const serverBalance =
+        Number(currentUser.balance);
+
+    const value =
+        formatMoney(
+            Number.isFinite(serverBalance)
+                ? serverBalance
+                : 0
+        );
+
+    const balance =
+        document.getElementById("balance");
+
+    const headerBalanceValue =
+        document.getElementById(
+            "header-balance-value"
+        );
+
+    const accountBalance =
+        document.getElementById(
+            "account-balance"
+        );
+
+    if (balance) {
+        balance.textContent = value;
+    }
+
+    if (headerBalanceValue) {
+        headerBalanceValue.textContent =
+            value;
+    }
+
+    if (accountBalance) {
+        accountBalance.textContent =
+            "R$ " + value;
     }
 }
 
@@ -630,10 +782,7 @@ function updateAccountData(user) {
 
 function updateGameVisuals() {
 
-    ensureDemoBalance();
-
     updateDemoBalanceVisual();
-    updateTurboButton();
 }
 
 /* =========================================================
@@ -649,46 +798,7 @@ async function loadCurrentUser() {
         return null;
     }
 
-    try {
-
-        const response =
-            await fetch(
-                "/api/me",
-                {
-                    headers: {
-                        "Authorization":
-                            "Bearer " + token
-                    }
-                }
-            );
-
-        if (!response.ok) {
-
-            localStorage.removeItem("token");
-
-            token = null;
-            currentUser = null;
-
-            return null;
-        }
-
-        currentUser =
-            await response.json();
-
-        ensureDemoBalance();
-        saveDemoBalance();
-
-        return currentUser;
-
-    } catch (error) {
-
-        console.error(
-            "Erro ao carregar usuário:",
-            error
-        );
-
-        return null;
-    }
+    return await refreshAccountFromServer();
 }
 
 /* =========================================================
@@ -723,7 +833,8 @@ function showLoginForm() {
                 )
             ) {
 
-                element.style.display = "block";
+                element.style.display =
+                    "block";
 
             } else {
 
@@ -780,6 +891,15 @@ function showForgotPassword() {
         resetCodeArea.style.display = "none";
     }
 
+    if (newPasswordArea) {
+        newPasswordArea.style.display = "none";
+    }
+
+    if (confirmResetCode) {
+        confirmResetCode.style.display =
+            "block";
+    }
+
     if (forgotEmail) {
         forgotEmail.focus();
     }
@@ -790,6 +910,7 @@ function showForgotPassword() {
 ========================================================= */
 
 if (loginButton) {
+
     loginButton.addEventListener(
         "click",
         showLogin
@@ -797,6 +918,7 @@ if (loginButton) {
 }
 
 if (registerButton) {
+
     registerButton.addEventListener(
         "click",
         showRegister
@@ -804,73 +926,85 @@ if (registerButton) {
 }
 
 if (goRegister) {
+
     goRegister.addEventListener(
         "click",
         function (event) {
 
             event.preventDefault();
+
             showRegister();
         }
     );
 }
 
 if (goLogin) {
+
     goLogin.addEventListener(
         "click",
         function (event) {
 
             event.preventDefault();
+
             showLogin();
         }
     );
 }
 
 if (backHomeLogin) {
+
     backHomeLogin.addEventListener(
         "click",
         function (event) {
 
             event.preventDefault();
+
             showHome();
         }
     );
 }
 
 if (backHomeRegister) {
+
     backHomeRegister.addEventListener(
         "click",
         function (event) {
 
             event.preventDefault();
+
             showHome();
         }
     );
 }
 
 if (forgotPasswordLink) {
+
     forgotPasswordLink.addEventListener(
         "click",
         function (event) {
 
             event.preventDefault();
+
             showForgotPassword();
         }
     );
 }
 
 if (backToLogin) {
+
     backToLogin.addEventListener(
         "click",
         function (event) {
 
             event.preventDefault();
+
             showLoginForm();
         }
     );
 }
 
 /* =========================================================
-RECUPERAÇÃO DE SENHA
+   RECUPERAÇÃO DE SENHA
 ========================================================= */
 
 if (sendResetCode) {
@@ -898,6 +1032,7 @@ if (sendResetCode) {
             }
 
             sendResetCode.disabled = true;
+
             sendResetCode.textContent =
                 "ENVIANDO...";
 
@@ -950,10 +1085,6 @@ if (sendResetCode) {
                         "block";
                 }
 
-                /*
-                 * Garante que a área da nova senha
-                 * continue escondida até confirmar o código.
-                 */
                 if (newPasswordArea) {
                     newPasswordArea.style.display =
                         "none";
@@ -981,25 +1112,15 @@ if (sendResetCode) {
 
                 sendResetCode.disabled = false;
 
-                /*
-                 * Não volta para ENVIAR CÓDIGO.
-                 * Depois do primeiro envio permanece REENVIAR CÓDIGO.
-                 */
-                if (
-                    sendResetCode.textContent ===
-                    "ENVIANDO..."
-                ) {
-                    sendResetCode.textContent =
-                        "REENVIAR CÓDIGO";
-                }
+                sendResetCode.textContent =
+                    "REENVIAR CÓDIGO";
             }
         }
     );
 }
 
-
 /* =========================================================
-CONFIRMAR CÓDIGO
+   CONFIRMAR CÓDIGO
 ========================================================= */
 
 if (confirmResetCode) {
@@ -1048,6 +1169,7 @@ if (confirmResetCode) {
             }
 
             confirmResetCode.disabled = true;
+
             confirmResetCode.textContent =
                 "CONFIRMANDO...";
 
@@ -1095,16 +1217,9 @@ if (confirmResetCode) {
                         "Código confirmado. Digite sua nova senha.";
                 }
 
-                /*
-                 * Esconde o botão de confirmar
-                 * porque o código já foi validado.
-                 */
                 confirmResetCode.style.display =
                     "none";
 
-                /*
-                 * Mostra os campos de nova senha.
-                 */
                 if (newPasswordArea) {
                     newPasswordArea.style.display =
                         "block";
@@ -1126,6 +1241,7 @@ if (confirmResetCode) {
             } finally {
 
                 confirmResetCode.disabled = false;
+
                 confirmResetCode.textContent =
                     "CONFIRMAR CÓDIGO";
             }
@@ -1133,11 +1249,9 @@ if (confirmResetCode) {
     );
 }
 
-
 /* =========================================================
-ALTERAR SENHA
+   ALTERAR SENHA
 ========================================================= */
-
 
 if (resetPasswordSubmit) {
 
@@ -1205,6 +1319,7 @@ if (resetPasswordSubmit) {
             }
 
             resetPasswordSubmit.disabled = true;
+
             resetPasswordSubmit.textContent =
                 "ALTERANDO...";
 
@@ -1284,6 +1399,7 @@ if (resetPasswordSubmit) {
             } finally {
 
                 resetPasswordSubmit.disabled = false;
+
                 resetPasswordSubmit.textContent =
                     "ALTERAR SENHA";
             }
@@ -1386,6 +1502,7 @@ if (registerSubmit) {
             }
 
             registerSubmit.disabled = true;
+
             registerSubmit.textContent =
                 "CRIANDO...";
 
@@ -1433,6 +1550,7 @@ if (registerSubmit) {
                     data.token || null;
 
                 if (token) {
+
                     localStorage.setItem(
                         "token",
                         token
@@ -1442,14 +1560,19 @@ if (registerSubmit) {
                 currentUser =
                     data.user || null;
 
+                /*
+                 * Depois do cadastro,
+                 * pega o saldo diretamente
+                 * do banco.
+                 */
+
                 if (currentUser) {
 
-                    currentUser.demoBalance =
-                        DEMO_START_BALANCE;
+                    await refreshAccountFromServer();
 
-                    saveDemoBalance();
-
-                    showGames(currentUser);
+                    await showGames(
+                        currentUser
+                    );
 
                 } else {
 
@@ -1468,6 +1591,7 @@ if (registerSubmit) {
             } finally {
 
                 registerSubmit.disabled = false;
+
                 registerSubmit.textContent =
                     "CRIAR CONTA";
             }
@@ -1519,6 +1643,7 @@ if (loginSubmit) {
             }
 
             loginSubmit.disabled = true;
+
             loginSubmit.textContent =
                 "ENTRANDO...";
 
@@ -1565,32 +1690,35 @@ if (loginSubmit) {
                     data.token || null;
 
                 if (token) {
+
                     localStorage.setItem(
                         "token",
                         token
                     );
                 }
 
+                /*
+                 * NÃO confia no saldo que veio
+                 * apenas no login.
+                 *
+                 * Consulta novamente /api/me.
+                 */
+
                 currentUser =
                     data.user || null;
 
-                if (currentUser) {
+                const user =
+                    await refreshAccountFromServer();
 
-                    ensureDemoBalance();
-                    saveDemoBalance();
+                if (user) {
 
-                    showGames(currentUser);
+                    currentUser = user;
+
+                    await showGames(user);
 
                 } else {
 
-                    const user =
-                        await loadCurrentUser();
-
-                    if (user) {
-                        showGames(user);
-                    } else {
-                        showHome();
-                    }
+                    showHome();
                 }
 
             } catch (error) {
@@ -1605,6 +1733,7 @@ if (loginSubmit) {
             } finally {
 
                 loginSubmit.disabled = false;
+
                 loginSubmit.textContent =
                     "ENTRAR";
             }
@@ -1631,7 +1760,7 @@ if (heroPlay) {
                 await loadCurrentUser();
 
             if (user) {
-                showGames(user);
+                await showGames(user);
             } else {
                 showLogin();
             }
@@ -1653,6 +1782,7 @@ if (heroGames) {
                     );
 
                 if (gamesSection) {
+
                     gamesSection.scrollIntoView({
                         behavior: "smooth",
                         block: "start"
@@ -1666,7 +1796,7 @@ if (heroGames) {
                 await loadCurrentUser();
 
             if (user) {
-                showGames(user);
+                await showGames(user);
             } else {
                 showLogin();
             }
@@ -1689,7 +1819,7 @@ if (seeAllGames) {
                 await loadCurrentUser();
 
             if (user) {
-                showGames(user);
+                await showGames(user);
             } else {
                 showLogin();
             }
@@ -1736,7 +1866,7 @@ if (menuGames) {
                 await loadCurrentUser();
 
             if (user) {
-                showGames(user);
+                await showGames(user);
             } else {
                 showLogin();
             }
@@ -1761,7 +1891,7 @@ if (menuAccount) {
                 await loadCurrentUser();
 
             if (user) {
-                showAccount(user);
+                await showAccount(user);
             } else {
                 showLogin();
             }
@@ -1784,13 +1914,14 @@ async function openGame() {
         await loadCurrentUser();
 
     if (user) {
-        showGame(user);
+        await showGame(user);
     } else {
         showLogin();
     }
 }
 
 if (gameTiger) {
+
     gameTiger.addEventListener(
         "click",
         openGame
@@ -1798,6 +1929,7 @@ if (gameTiger) {
 }
 
 if (gamesTiger) {
+
     gamesTiger.addEventListener(
         "click",
         openGame
@@ -1814,7 +1946,7 @@ if (accountGames) {
                 await loadCurrentUser();
 
             if (user) {
-                showGames(user);
+                await showGames(user);
             } else {
                 showLogin();
             }
@@ -1832,7 +1964,7 @@ if (backToGames) {
                 await loadCurrentUser();
 
             if (user) {
-                showGames(user);
+                await showGames(user);
             } else {
                 showLogin();
             }
@@ -1908,6 +2040,7 @@ if (autoPlayButton) {
             if (autoPlaying) {
 
                 autoCancelRequested = true;
+
                 return;
             }
 
@@ -1979,16 +2112,6 @@ function spinSlots() {
 
         /*
          * PESOS DOS SÍMBOLOS
-         *
-         * Quanto maior o número, maior a chance
-         * do símbolo aparecer.
-         *
-         * 🐯 = extremamente raro
-         * 💰 = raro
-         * 🍒 = mais comum
-         * 💎 = comum
-         * 🔔 = muito comum
-         * 7️⃣ = muito comum
          */
 
         const symbolWeights = [
@@ -2018,10 +2141,6 @@ function spinSlots() {
             }
         ];
 
-        /*
-         * Sorteia um símbolo individualmente.
-         */
-
         function randomSymbol() {
 
             const totalWeight =
@@ -2033,7 +2152,8 @@ function spinSlots() {
                 );
 
             let random =
-                Math.random() * totalWeight;
+                Math.random() *
+                totalWeight;
 
             for (
                 let i = 0;
@@ -2052,12 +2172,6 @@ function spinSlots() {
             return "7️⃣";
         }
 
-        /*
-         * GERA O RESULTADO FINAL
-         *
-         * Primeiro sorteamos normalmente.
-         */
-
         let finalSymbols = [
             randomSymbol(),
             randomSymbol(),
@@ -2065,15 +2179,8 @@ function spinSlots() {
         ];
 
         /*
-         * EVITA EXCESSO DE TRIPLAS.
-         *
-         * Mesmo que os sorteios individuais
-         * resultem em 3 iguais, existe uma
-         * proteção adicional.
-         *
-         * A chance de uma tripla já é baixa
-         * pelos pesos acima, e aqui reduzimos
-         * ainda mais sua frequência.
+         * Redução adicional da ocorrência
+         * de triplas.
          */
 
         if (
@@ -2081,20 +2188,10 @@ function spinSlots() {
             finalSymbols[1] === finalSymbols[2]
         ) {
 
-            /*
-             * Só permite a tripla em uma pequena
-             * parcela dos casos.
-             */
-
             const allowTriple =
                 Math.random() < 0.08;
 
             if (!allowTriple) {
-
-                /*
-                 * Troca o terceiro símbolo por
-                 * outro símbolo diferente.
-                 */
 
                 let replacement =
                     randomSymbol();
@@ -2103,6 +2200,7 @@ function spinSlots() {
                     replacement ===
                     finalSymbols[0]
                 ) {
+
                     replacement =
                         randomSymbol();
                 }
@@ -2117,10 +2215,6 @@ function spinSlots() {
         validSlots.forEach(
             function (slot, index) {
 
-                /*
-                 * SUPER TURBO
-                 */
-
                 if (turboLevel === 2) {
 
                     slot.textContent =
@@ -2132,6 +2226,7 @@ function spinSlots() {
                         finished ===
                         validSlots.length
                     ) {
+
                         resolve(finalSymbols);
                     }
 
@@ -2192,19 +2287,33 @@ function spinSlots() {
    PROCESSAR RESULTADO DA RODADA
 ========================================================= */
 
-function processDemoResult(symbols, bet) {
+/*
+ * IMPORTANTE:
+ *
+ * Esta função agora é ASYNC.
+ *
+ * Ela:
+ *
+ * 1. desconta a aposta no servidor;
+ * 2. calcula o resultado;
+ * 3. adiciona o prêmio no servidor;
+ * 4. atualiza currentUser;
+ * 5. atualiza a tela.
+ */
+
+async function processDemoResult(
+    symbols,
+    bet
+) {
 
     if (
         !symbols ||
         symbols.length !== 3 ||
-        !currentUser
+        !currentUser ||
+        !token
     ) {
         return null;
     }
-
-    ensureDemoBalance();
-
-    console.log("SALDO ATUAL:", currentUser.demoBalance);
 
     bet = Number(bet);
 
@@ -2217,34 +2326,31 @@ function processDemoResult(symbols, bet) {
     }
 
     /*
-       O VALOR DA APOSTA É DESCONTADO
-       ANTES DO RESULTADO.
-    */
+     * PRIMEIRO:
+     * desconta a aposta no servidor.
+     */
 
-    currentUser.demoBalance -= bet;
+    const debit =
+        await changeServerBalance(
+            -bet
+        );
 
-    console.log("=== TESTE DE SALDO ===");
-    console.log("Saldo antes do débito:", currentUser.demoBalance + bet);
-    console.log("Valor informado:", bet);
-    console.log("Saldo depois do débito:", currentUser.demoBalance);
+    if (!debit) {
 
-    saveDemoBalance();
-    updateDemoBalanceVisual();
+        console.error(
+            "Não foi possível descontar a aposta."
+        );
+
+        return null;
+    }
 
     let payout = 0;
     let multiplier = 0;
     let resultType = "lose";
 
     /*
-       TRÊS SÍMBOLOS IGUAIS
-
-       🐯 TIGRE = 50x
-       💰 MOEDA = 30x
-       🍒 CEREJA = 20x
-       💎 DIAMANTE = 15x
-       🔔 SINO = 10x
-       7️⃣ SETE = 5x
-    */
+     * TRÊS SÍMBOLOS IGUAIS
+     */
 
     if (
         symbols[0] === symbols[1] &&
@@ -2259,35 +2365,50 @@ function processDemoResult(symbols, bet) {
             "💎": 15,
             "🔔": 10,
             "7️⃣": 5
-
         };
 
         multiplier =
-            tripleMultipliers[symbols[0]] || 0;
+            tripleMultipliers[
+                symbols[0]
+            ] || 0;
 
         payout =
             bet * multiplier;
 
-        resultType = "triple";
+        resultType =
+            "triple";
 
     } else {
 
         /*
-           DUAS IGUAIS
-
-           Mantém uma premiação menor.
-        */
+         * DUAS IGUAIS
+         */
 
         let pairSymbol = null;
 
-        if (symbols[0] === symbols[1]) {
-            pairSymbol = symbols[0];
+        if (
+            symbols[0] ===
+            symbols[1]
+        ) {
 
-        } else if (symbols[1] === symbols[2]) {
-            pairSymbol = symbols[1];
+            pairSymbol =
+                symbols[0];
 
-        } else if (symbols[0] === symbols[2]) {
-            pairSymbol = symbols[0];
+        } else if (
+            symbols[1] ===
+            symbols[2]
+        ) {
+
+            pairSymbol =
+                symbols[1];
+
+        } else if (
+            symbols[0] ===
+            symbols[2]
+        ) {
+
+            pairSymbol =
+                symbols[0];
         }
 
         if (pairSymbol) {
@@ -2300,33 +2421,76 @@ function processDemoResult(symbols, bet) {
                 "💎": 1.5,
                 "🔔": 1,
                 "7️⃣": 0.5
-
             };
 
             multiplier =
-                pairMultipliers[pairSymbol] || 0;
+                pairMultipliers[
+                    pairSymbol
+                ] || 0;
 
             payout =
                 bet * multiplier;
 
-            resultType = "pair";
+            resultType =
+                "pair";
         }
     }
 
     /*
-       ADICIONA O PRÊMIO AO SALDO.
-    */
+     * SEGUNDO:
+     *
+     * Se ganhou, adiciona o prêmio
+     * no servidor.
+     */
 
-    currentUser.demoBalance += payout;
+    if (payout > 0) {
 
-    saveDemoBalance();
-    updateDemoBalanceVisual();
+        const credit =
+            await changeServerBalance(
+                payout
+            );
+
+        if (!credit) {
+
+            /*
+             * Não atualiza saldo local
+             * se o servidor rejeitar.
+             */
+
+            console.error(
+                "Não foi possível creditar o prêmio."
+            );
+
+            /*
+             * Reconsulta o saldo real.
+             */
+
+            await syncBalance();
+
+            return null;
+        }
+    }
+
+    /*
+     * Busca novamente o saldo oficial.
+     */
+
+    await syncBalance();
 
     return {
+
         bet: bet,
+
         payout: payout,
+
         multiplier: multiplier,
-        type: resultType
+
+        type: resultType,
+
+        balance:
+            currentUser
+                ? currentUser.balance
+                : 0
     };
 }
 
@@ -2345,11 +2509,17 @@ async function playDemoRound() {
         return false;
     }
 
-    ensureDemoBalance();
-
     /*
-       PEGA O VALOR DIGITADO PELO USUÁRIO.
-    */
+     * Antes de começar:
+     * pega o saldo REAL do servidor.
+     */
+
+    const freshUser =
+        await syncBalance();
+
+    if (!freshUser) {
+        return false;
+    }
 
     const betInput =
         document.getElementById("bet");
@@ -2358,10 +2528,6 @@ async function playDemoRound() {
         Number(
             betInput?.value || 0
         );
-
-    /*
-       VALIDA A APOSTA.
-    */
 
     if (
         !Number.isFinite(bet) ||
@@ -2374,6 +2540,7 @@ async function playDemoRound() {
             );
 
         if (message) {
+
             message.textContent =
                 "Digite um valor de aposta válido.";
         }
@@ -2383,24 +2550,23 @@ async function playDemoRound() {
 
     if (bet > DEMO_MAX_BET) {
 
-    const message =
-        document.getElementById(
-            "game-message"
-        );
+        const message =
+            document.getElementById(
+                "game-message"
+            );
 
-    if (message) {
-        message.textContent =
-            "A aposta máxima é de R$ 500,00.";
+        if (message) {
+
+            message.textContent =
+                "A aposta máxima é de R$ 500,00.";
+        }
+
+        return false;
     }
 
-    return;
-}
-    /*
-       NÃO PERMITE APOSTAR MAIS DO QUE O SALDO.
-    */
-
     if (
-        currentUser.demoBalance < bet
+        Number(currentUser.balance) <
+        bet
     ) {
 
         const message =
@@ -2409,6 +2575,7 @@ async function playDemoRound() {
             );
 
         if (message) {
+
             message.textContent =
                 "Saldo demo insuficiente para essa aposta.";
         }
@@ -2423,6 +2590,7 @@ async function playDemoRound() {
         playButton.disabled = true;
 
         if (!autoPlaying) {
+
             playButton.textContent =
                 "GIRANDO...";
         }
@@ -2436,24 +2604,16 @@ async function playDemoRound() {
     try {
 
         if (message) {
+
             message.textContent =
                 "Boa sorte!";
         }
 
-        /*
-           GIRA OS SÍMBOLOS.
-        */
-
         const symbols =
             await spinSlots();
 
-        /*
-           CALCULA O RESULTADO
-           UTILIZANDO A APOSTA DIGITADA.
-        */
-
         const result =
-            processDemoResult(
+            await processDemoResult(
                 symbols,
                 bet
             );
@@ -2462,37 +2622,35 @@ async function playDemoRound() {
             return false;
         }
 
-        /*
-           RESULTADO: TRÊS IGUAIS
-        */
-
-        if (result.type === "triple") {
+        if (
+            result.type ===
+            "triple"
+        ) {
 
             if (message) {
 
                 message.textContent =
-                    "🎉 COMBINAÇÃO TRIPLA! " +
-                    result.payout.toLocaleString("pt-BR") +
+                    "🎉 COMBINAÇÃO TRIPLA! +" +
+                    formatMoney(
+                        result.payout
+                    ) +
                     " Reais!";
             }
 
-        /*
-           RESULTADO: DUAS IGUAIS
-        */
-
-        } else if (result.type === "pair") {
+        } else if (
+            result.type ===
+            "pair"
+        ) {
 
             if (message) {
 
                 message.textContent =
                     "✨ DUAS IGUAIS! +" +
-                    result.payout.toLocaleString("pt-BR") +
+                    formatMoney(
+                        result.payout
+                    ) +
                     " Reais!";
             }
-
-        /*
-           SEM COMBINAÇÃO
-        */
 
         } else {
 
@@ -2504,8 +2662,8 @@ async function playDemoRound() {
         }
 
         /*
-           ATUALIZA TUDO NOVAMENTE.
-        */
+         * Atualiza visual novamente.
+         */
 
         updateDemoBalanceVisual();
 
@@ -2518,7 +2676,15 @@ async function playDemoRound() {
             error
         );
 
+        /*
+         * Em caso de erro,
+         * busca o saldo verdadeiro.
+         */
+
+        await syncBalance();
+
         if (message) {
+
             message.textContent =
                 "Não foi possível concluir a rodada.";
         }
@@ -2534,7 +2700,8 @@ async function playDemoRound() {
             !autoPlaying
         ) {
 
-            playButton.disabled = false;
+            playButton.disabled =
+                false;
 
             playButton.textContent =
                 "JOGAR";
@@ -2546,38 +2713,52 @@ async function playDemoRound() {
    RODADAS AUTOMÁTICAS
 ========================================================= */
 
-async function startAutoRounds(rounds) {
-
-    if (autoPlaying || spinning) {
-        return;
-    }
-
-    rounds = Number(rounds);
-
-/*
-   Permite Infinity somente para a modalidade
-   de rodadas infinitas.
-*/
-const infiniteRounds = rounds === Infinity;
-
-if (
-    (!infiniteRounds && !Number.isFinite(rounds)) ||
-    rounds <= 0
+async function startAutoRounds(
+    rounds
 ) {
-    return;
-}
 
-    if (!currentUser || !token) {
-        showLogin();
+    if (
+        autoPlaying ||
+        spinning
+    ) {
         return;
     }
 
-    ensureDemoBalance();
+    rounds =
+        Number(rounds);
+
+    const infiniteRounds =
+        rounds === Infinity;
+
+    if (
+        !infiniteRounds &&
+        !Number.isFinite(rounds)
+    ) {
+        return;
+    }
+
+    if (
+        !infiniteRounds &&
+        rounds <= 0
+    ) {
+        return;
+    }
+
+    if (
+        !currentUser ||
+        !token
+    ) {
+
+        showLogin();
+
+        return;
+    }
 
     /*
-       O AUTO UTILIZA A MESMA APOSTA
-       INFORMADA NO CAMPO "bet".
-    */
+     * Atualiza saldo antes do AUTO.
+     */
+
+    await syncBalance();
 
     const betInput =
         document.getElementById("bet");
@@ -2598,6 +2779,7 @@ if (
             );
 
         if (message) {
+
             message.textContent =
                 "Digite um valor de aposta válido.";
         }
@@ -2613,14 +2795,18 @@ if (
             );
 
         if (message) {
+
             message.textContent =
-                "A aposta máxima é de 500,00 Reais.";
+                "A aposta máxima é de R$ 500,00.";
         }
 
         return;
     }
 
-    if (currentUser.demoBalance < bet) {
+    if (
+        Number(currentUser.balance) <
+        bet
+    ) {
 
         const message =
             document.getElementById(
@@ -2628,6 +2814,7 @@ if (
             );
 
         if (message) {
+
             message.textContent =
                 "Saldo demo insuficiente para essa aposta.";
         }
@@ -2652,6 +2839,7 @@ if (
     if (playButton) {
 
         playButton.disabled = false;
+
         playButton.textContent =
             "JOGAR";
     }
@@ -2665,28 +2853,36 @@ if (
 
         for (
             let round = 1;
+            infiniteRounds ||
             round <= rounds;
             round++
         ) {
-
-            /*
-               CANCELAMENTO ANTES DA RODADA.
-            */
 
             if (autoCancelRequested) {
                 break;
             }
 
             /*
-               VERIFICA O SALDO ANTES DE CADA RODADA.
-            */
+             * IMPORTANTE:
+             *
+             * Sempre consulta o servidor
+             * antes da próxima rodada.
+             */
+
+            const freshUser =
+                await syncBalance();
+
+            if (!freshUser) {
+                break;
+            }
 
             if (
-                !currentUser ||
-                currentUser.demoBalance < bet
+                Number(currentUser.balance) <
+                bet
             ) {
 
                 if (message) {
+
                     message.textContent =
                         "Saldo insuficiente.";
                 }
@@ -2696,11 +2892,20 @@ if (
 
             if (message) {
 
-                message.textContent =
-                    "RODADA " +
-                    round +
-                    " DE " +
-                    rounds;
+                if (infiniteRounds) {
+
+                    message.textContent =
+                        "RODADA " +
+                        round;
+
+                } else {
+
+                    message.textContent =
+                        "RODADA " +
+                        round +
+                        " DE " +
+                        rounds;
+                }
             }
 
             await new Promise(
@@ -2715,45 +2920,25 @@ if (
                 }
             );
 
-            /*
-               CANCELAMENTO DURANTE A ESPERA.
-            */
-
             if (autoCancelRequested) {
                 break;
             }
 
-            /*
-               EXECUTA A RODADA NORMAL.
-               playDemoRound() usa o mesmo
-               valor do campo "bet".
-            */
-
             const result =
                 await playDemoRound();
-
-            /*
-               SE A RODADA NÃO PÔDE SER EXECUTADA,
-               ENCERRA O AUTO.
-            */
 
             if (!result) {
                 break;
             }
 
-            /*
-               PERMITE CANCELAR LOGO APÓS A RODADA.
-            */
-
             if (autoCancelRequested) {
                 break;
             }
 
-            /*
-               ESPERA ENTRE AS RODADAS.
-            */
-
-            if (round < rounds) {
+            if (
+                infiniteRounds ||
+                round < rounds
+            ) {
 
                 await new Promise(
                     function (resolve) {
@@ -2776,31 +2961,15 @@ if (
             error
         );
 
+        await syncBalance();
+
         if (message) {
+
             message.textContent =
                 "Rodadas automáticas encerradas.";
         }
 
     } finally {
-
-        /*
-           SEMPRE LIBERA O AUTO.
-           ISSO É O MAIS IMPORTANTE.
-        */
-
-        const saldoInsuficiente =
-            currentUser &&
-            currentUser.demoBalance < bet;
-
-        stopAutoRounds(
-            !saldoInsuficiente &&
-            !autoCancelRequested
-        );
-
-        /*
-           GARANTE QUE O ESTADO FIQUE LIMPO
-           MESMO SE HOUVER ALGUM ERRO.
-        */
 
         autoPlaying = false;
         autoRounds = 0;
@@ -2827,9 +2996,16 @@ if (
         if (playButton) {
 
             playButton.disabled = false;
+
             playButton.textContent =
                 "JOGAR";
         }
+
+        /*
+         * Última sincronização.
+         */
+
+        await syncBalance();
     }
 }
 
@@ -2843,7 +3019,7 @@ function stopAutoRounds(
 
     autoPlaying = false;
     autoRounds = 0;
-    autoCancelRequested = false;
+    autoCancelRequested = true;
 
     if (autoPlayButton) {
 
@@ -2856,6 +3032,7 @@ function stopAutoRounds(
     }
 
     if (autoOptions) {
+
         autoOptions.classList.remove(
             "show"
         );
@@ -2864,6 +3041,7 @@ function stopAutoRounds(
     if (playButton) {
 
         playButton.disabled = false;
+
         playButton.textContent =
             "JOGAR";
     }
@@ -2876,78 +3054,116 @@ function stopAutoRounds(
             );
 
         if (message) {
+
             message.textContent =
                 "Rodadas automáticas encerradas.";
         }
     }
 }
 
-
 /* =========================================================
-SELETOR DE BET
+   SELETOR DE BET
 ========================================================= */
 
 (function () {
 
     const betButton =
-        document.getElementById("bet-button");
+        document.getElementById(
+            "bet-button"
+        );
 
     const betOptions =
-        document.getElementById("bet-options");
+        document.getElementById(
+            "bet-options"
+        );
 
     const betInput =
-        document.getElementById("bet");
+        document.getElementById(
+            "bet"
+        );
 
     const betValue =
-        document.getElementById("bet-value");
+        document.getElementById(
+            "bet-value"
+        );
 
-    if (!betButton || !betOptions || !betInput || !betValue) {
+    if (
+        !betButton ||
+        !betOptions ||
+        !betInput ||
+        !betValue
+    ) {
         return;
     }
 
-    betButton.addEventListener("click", function (event) {
+    betButton.addEventListener(
+        "click",
+        function (event) {
 
-        event.stopPropagation();
+            event.stopPropagation();
 
-        betOptions.classList.toggle("show");
-
-    });
+            betOptions.classList.toggle(
+                "show"
+            );
+        }
+    );
 
     betOptions
-        .querySelectorAll("[data-bet]")
-        .forEach(function (button) {
+        .querySelectorAll(
+            "[data-bet]"
+        )
+        .forEach(
+            function (button) {
 
-            button.addEventListener("click", function (event) {
+                button.addEventListener(
+                    "click",
+                    function (event) {
 
-                event.stopPropagation();
+                        event.stopPropagation();
 
-                const value =
-                    Number(button.dataset.bet);
+                        const value =
+                            Number(
+                                button.dataset.bet
+                            );
 
-                if (
-                    !Number.isFinite(value) ||
-                    value <= 0 ||
-                    value > 500
-                ) {
-                    return;
-                }
+                        if (
+                            !Number.isFinite(
+                                value
+                            ) ||
+                            value <= 0 ||
+                            value > DEMO_MAX_BET
+                        ) {
+                            return;
+                        }
 
-                betInput.value = String(value);
+                        betInput.value =
+                            String(value);
 
-                betValue.textContent =
-                    value.toFixed(2).replace(".", ",");
+                        betValue.textContent =
+                            value
+                                .toFixed(2)
+                                .replace(
+                                    ".",
+                                    ","
+                                );
 
-                betOptions.classList.remove("show");
+                        betOptions.classList.remove(
+                            "show"
+                        );
+                    }
+                );
+            }
+        );
 
-            });
+    document.addEventListener(
+        "click",
+        function () {
 
-        });
-
-    document.addEventListener("click", function () {
-
-        betOptions.classList.remove("show");
-
-    });
+            betOptions.classList.remove(
+                "show"
+            );
+        }
+    );
 
 })();
 
@@ -2959,82 +3175,85 @@ if (autoOptions) {
 
     autoOptions
         .querySelectorAll("button")
-        .forEach(function (button) {
+        .forEach(
+            function (button) {
 
-            button.addEventListener(
-                "click",
-                function (event) {
+                button.addEventListener(
+                    "click",
+                    function (event) {
 
-                    event.stopPropagation();
+                        event.stopPropagation();
 
-                    /*
-                       DETECTA O BOTÃO DE RODADAS INFINITAS.
-                    */
+                        const buttonText =
+                            button.textContent
+                                .trim()
+                                .toLowerCase();
 
-                    const buttonText =
-                        button.textContent
-                            .trim()
-                            .toLowerCase();
+                        const isInfinite =
+                            buttonText === "∞" ||
+                            buttonText.includes(
+                                "infin"
+                            );
 
-                    const isInfinite =
-                        buttonText === "∞" ||
-                        buttonText.includes("infin");
+                        if (isInfinite) {
 
-                    /*
-                       MODO INFINITO
-                    */
+                            autoOptions.classList.remove(
+                                "show"
+                            );
 
-                    if (isInfinite) {
+                            if (autoPlayButton) {
+
+                                autoPlayButton.classList.add(
+                                    "active"
+                                );
+                            }
+
+                            startAutoRounds(
+                                Infinity
+                            );
+
+                            return;
+                        }
+
+                        const value =
+                            Number(
+                                button.dataset.rounds ||
+                                button.dataset.value ||
+                                button.value ||
+                                button.textContent
+                                    .replace(
+                                        /\D/g,
+                                        ""
+                                    )
+                            );
+
+                        if (
+                            !Number.isFinite(
+                                value
+                            ) ||
+                            value <= 0
+                        ) {
+                            return;
+                        }
 
                         autoOptions.classList.remove(
                             "show"
                         );
 
                         if (autoPlayButton) {
-                            autoPlayButton.classList.add(
+
+                            autoPlayButton.classList.remove(
                                 "active"
                             );
                         }
 
-                        startAutoRounds(Infinity);
-
-                        return;
-                    }
-
-                    /*
-                       RODADAS NORMAIS
-                    */
-
-                    const value =
-                        Number(
-                            button.dataset.rounds ||
-                            button.dataset.value ||
-                            button.value ||
-                            button.textContent
-                                .replace(/\D/g, "")
-                        );
-
-                    if (
-                        !Number.isFinite(value) ||
-                        value <= 0
-                    ) {
-                        return;
-                    }
-
-                    autoOptions.classList.remove(
-                        "show"
-                    );
-
-                    if (autoPlayButton) {
-                        autoPlayButton.classList.remove(
-                            "active"
+                        startAutoRounds(
+                            value
                         );
                     }
-
-                    startAutoRounds(value);
-                }
-            );
-        });
+                );
+            }
+        );
 }
 
 /* =========================================================
@@ -3049,7 +3268,9 @@ if (playButton) {
 
             if (autoPlaying) {
 
-                autoCancelRequested = true;
+                autoCancelRequested =
+                    true;
+
                 return;
             }
 
@@ -3064,19 +3285,37 @@ if (playButton) {
 
 function logout() {
 
-    autoCancelRequested = true;
-    autoPlaying = false;
-    autoRounds = 0;
-    spinning = false;
+    autoCancelRequested =
+        true;
 
-    localStorage.removeItem("token");
+    autoPlaying =
+        false;
+
+    autoRounds =
+        0;
+
+    spinning =
+        false;
+
+    /*
+     * Remove SOMENTE o token.
+     *
+     * Não existe mais saldo local
+     * para apagar.
+     */
+
+    localStorage.removeItem(
+        "token"
+    );
 
     token = null;
     currentUser = null;
 
     if (playButton) {
 
-        playButton.disabled = false;
+        playButton.disabled =
+            false;
+
         playButton.textContent =
             "JOGAR";
     }
@@ -3092,6 +3331,7 @@ function logout() {
     }
 
     if (autoOptions) {
+
         autoOptions.classList.remove(
             "show"
         );
@@ -3101,6 +3341,7 @@ function logout() {
 }
 
 if (headerLogout) {
+
     headerLogout.addEventListener(
         "click",
         logout
@@ -3131,6 +3372,7 @@ if (loginUsername) {
                 event.key === "Enter" &&
                 loginSubmit
             ) {
+
                 loginSubmit.click();
             }
         }
@@ -3147,11 +3389,41 @@ if (loginPassword) {
                 event.key === "Enter" &&
                 loginSubmit
             ) {
+
                 loginSubmit.click();
             }
         }
     );
 }
+
+/* =========================================================
+   SINCRONIZAÇÃO QUANDO A ABA VOLTA AO FOCO
+========================================================= */
+
+/*
+ * Isso é importante para computador + celular.
+ *
+ * Se o saldo foi alterado em outro lugar,
+ * quando esta página voltar a ficar ativa,
+ * ela consulta /api/me novamente.
+ */
+
+document.addEventListener(
+    "visibilitychange",
+    async function () {
+
+        if (
+            document.visibilityState ===
+            "visible"
+        ) {
+
+            if (token && !spinning) {
+
+                await syncBalance();
+            }
+        }
+    }
+);
 
 /* =========================================================
    INICIALIZAÇÃO
@@ -3168,6 +3440,7 @@ async function initialize() {
     ].forEach(function (element) {
 
         if (element) {
+
             element.style.setProperty(
                 "display",
                 "none",
@@ -3177,10 +3450,12 @@ async function initialize() {
     });
 
     if (headerLogout) {
-        headerLogout.style.display = "none";
+        headerLogout.style.display =
+            "none";
     }
 
     if (autoPlayButton) {
+
         autoPlayButton.innerHTML =
             autoPlayDefaultContent;
     }
@@ -3188,10 +3463,17 @@ async function initialize() {
     if (!token) {
 
         currentUser = null;
+
         showHome();
 
         return;
     }
+
+    /*
+     * NÃO usa saldo local.
+     *
+     * Busca tudo diretamente do servidor.
+     */
 
     const user =
         await loadCurrentUser();
@@ -3203,16 +3485,15 @@ async function initialize() {
         return;
     }
 
-    ensureDemoBalance();
-    saveDemoBalance();
+    currentUser =
+        user;
+
+    updateDemoBalanceVisual();
+    updateHeader(user);
 
     showHome();
-    updateHeader(user);
 }
 
 initialize();
 
 });
-
-
-
